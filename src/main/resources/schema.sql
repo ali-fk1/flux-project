@@ -58,3 +58,16 @@ CREATE INDEX idx_posts_user_platform ON posts(user_id, platform);
 CREATE INDEX idx_social_accounts_user_id ON social_accounts(user_id);
 CREATE INDEX idx_social_accounts_platform ON social_accounts(platform);
 CREATE INDEX idx_social_accounts_expires_at ON social_accounts(expires_at);
+
+-- ================================================================
+-- Altering for the sake of enhancing authorization process
+-- 21/08/2025-5:05 PM
+-- ================================================================
+ALTER TABLE social_accounts
+    ADD COLUMN oauth_state VARCHAR(255),
+ADD COLUMN expected_username VARCHAR(100),
+ADD COLUMN state_expires_at TIMESTAMP WITH TIME ZONE;
+
+-- Index for OAuth state lookups
+CREATE INDEX idx_social_accounts_oauth_state ON social_accounts(oauth_state, state_expires_at);
+CREATE INDEX idx_social_accounts_user_platform ON social_accounts(user_id, platform);
