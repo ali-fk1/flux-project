@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Test OAuth</title>
+    <meta charset="UTF-8" />
+    <style>
+        body { padding: 40px; font-family: Arial, sans-serif; text-align: center; }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            background-color: #1DA1F2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0d8bd9;
+        }
+    </style>
+</head>
+<body>
+<h2>🔧 Dev Test: Twitter OAuth</h2>
+<p>Click below to start OAuth flow</p>
+
+<!-- Simple form that submits to your API -->
+<form th:action="@{/api/x}" method="post">
+    <button type="submit">🔗 Connect Twitter</button>
+</form>
+</body>
+</html>
