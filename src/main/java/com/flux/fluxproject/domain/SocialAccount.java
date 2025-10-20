@@ -1,12 +1,13 @@
 package com.flux.fluxproject.domain;
 
 import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.OffsetDateTime;
-import java.util.Map;
 import java.util.UUID;
 
 @Getter
@@ -30,7 +31,7 @@ public class SocialAccount {
     private String username;
 
     @Column("auth_data")
-    private Map<String, Object> authData; // JSONB stored as Map
+    private String authData;
 
     @Column("expires_at")
     private OffsetDateTime expiresAt;
@@ -39,8 +40,14 @@ public class SocialAccount {
     private Boolean isActive;
 
     @Column("created_at")
+    @CreatedDate
     private OffsetDateTime createdAt;
 
     @Column("updated_at")
+    @LastModifiedDate
     private OffsetDateTime updatedAt;
+
+    public UUID getUserId() {
+        return userId;
+    }
 }

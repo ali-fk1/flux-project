@@ -21,13 +21,22 @@
         <java.version>21</java.version>
     </properties>
 
-    <!-- Testcontainers BOM for consistent versions -->
+    <!-- BOMs go in dependencyManagement section -->
     <dependencyManagement>
         <dependencies>
+            <!-- Testcontainers BOM for consistent versions -->
             <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>testcontainers-bom</artifactId>
                 <version>1.20.1</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- AWS SDK v2 BOM (manages versions) -->
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>2.28.21</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -51,7 +60,6 @@
             <artifactId>r2dbc-postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
-
 
         <!-- JDBC Driver (runtime, optional for migrations/tools) -->
         <dependency>
@@ -146,22 +154,57 @@
             <artifactId>r2dbc</artifactId>
             <scope>test</scope>
         </dependency>
-        <!--thyme leaf-->
+
+        <!-- Thymeleaf -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
+
+        <!-- ScribeJava for OAuth APIs -->
         <dependency>
             <groupId>com.github.scribejava</groupId>
             <artifactId>scribejava-apis</artifactId>
             <version>8.3.3</version>
         </dependency>
 
+        <!-- Spring Session -->
         <dependency>
             <groupId>org.springframework.session</groupId>
             <artifactId>spring-session-core</artifactId>
         </dependency>
 
+        <!-- Hibernate Types (Note: not typically used with R2DBC) -->
+        <dependency>
+            <groupId>com.vladmihalcea</groupId>
+            <artifactId>hibernate-types-52</artifactId>
+            <version>2.21.1</version>
+        </dependency>
+
+        <!-- Jackson for JSON processing -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- Spring Cloud AWS S3 -->
+        <dependency>
+            <groupId>io.awspring.cloud</groupId>
+            <artifactId>spring-cloud-aws-s3</artifactId>
+            <version>3.0.3</version>
+        </dependency>
+
+        <!-- AWS SDK v2 S3 (version managed by BOM) -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+        </dependency>
+
+        <!-- Netty HTTP Client for reactive (version managed by BOM) -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>netty-nio-client</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
