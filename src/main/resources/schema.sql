@@ -71,3 +71,23 @@ ADD COLUMN state_expires_at TIMESTAMP WITH TIME ZONE;
 -- Index for OAuth state lookups
 CREATE INDEX idx_social_accounts_oauth_state ON social_accounts(oauth_state, state_expires_at);
 CREATE INDEX idx_social_accounts_user_platform ON social_accounts(user_id, platform);
+
+
+-- ================================================================
+-- Altering for the sake of development
+-- 30/08/2025-12:04 PM
+-- ================================================================
+ALTER TABLE users ALTER COLUMN email DROP NOT NULL;
+
+
+ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+
+ALTER TABLE users ALTER COLUMN name DROP NOT NULL;
+
+-- ================================================================
+-- Altering for encrypting the tokens instead of storing them as map
+-- 05/09/2025-10:57 AM
+-- ================================================================
+
+ALTER TABLE social_accounts
+    ALTER COLUMN auth_data TYPE TEXT USING auth_data::text;

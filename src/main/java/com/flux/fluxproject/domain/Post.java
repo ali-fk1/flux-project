@@ -5,6 +5,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -34,10 +35,10 @@ public class Post {
     private List<String> mediaUrls; // PostgreSQL text[]
 
     @Column("scheduled_at")
-    private OffsetDateTime scheduledAt;
+    private Instant scheduledAt;
 
     @Column("published_at")
-    private OffsetDateTime publishedAt;
+    private Instant publishedAt;
 
     private String status; // 'draft', 'scheduled', etc.
 

@@ -3,6 +3,7 @@ package com.flux.fluxproject.model;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -17,8 +18,8 @@ public class PostDTO {
     private String platform; // 'twitter', 'facebook', etc.
     private String content;
     private List<String> mediaUrls; // PostgreSQL text[]
-    private OffsetDateTime scheduledAt;
-    private OffsetDateTime publishedAt;
+    private Instant scheduledAt;
+    private Instant publishedAt;
     private String status; // 'draft', 'scheduled', etc.
     private Map<String, Object> apiPayload; // JSONB
     private String errorMessage;
