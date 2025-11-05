@@ -30,4 +30,6 @@ public class User {
 
     @Column("updated_at")
     private OffsetDateTime updatedAt;
+
+    private Boolean enabled;
 }

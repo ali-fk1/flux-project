@@ -91,3 +91,10 @@ ALTER TABLE users ALTER COLUMN name DROP NOT NULL;
 
 ALTER TABLE social_accounts
     ALTER COLUMN auth_data TYPE TEXT USING auth_data::text;
+
+-- ================================================================
+-- Altering for users table to add enabled column for user verification
+-- 05/09/2025-10:57 AM
+-- ================================================================
+ALTER TABLE users
+    ADD COLUMN enabled BOOLEAN NOT NULL DEFAULT FALSE;
