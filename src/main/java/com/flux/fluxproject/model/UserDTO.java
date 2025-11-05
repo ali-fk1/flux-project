@@ -15,4 +15,5 @@ public class UserDTO {
     private String name;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
+    private Boolean enabled;
 }
