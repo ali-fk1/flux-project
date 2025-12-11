@@ -1,5 +1,6 @@
 package com.flux.fluxproject.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
@@ -12,20 +13,27 @@ import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebFluxSecurity
 public class SecurityConfig {
 
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendUrl;
+
+    @Value("${cors.allowed-origins:http://localhost:5173}")
+    private String allowedOrigins;
+
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         return http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable()) // Disable CSRF for dev
+                .csrf(csrf -> csrf.disable()) // Disable CSRF (using token-based auth)
                 .formLogin(formLogin -> formLogin.disable()) // No login page
                 .httpBasic(httpBasic -> httpBasic.disable()) // No HTTP Basic
                 .authorizeExchange(auth -> auth
-                        .anyExchange().permitAll() // Allow all for now
+                        .anyExchange().permitAll() // Allow all for now (JWT filter handles auth)
                 )
                 .build();
     }
@@ -34,22 +42,32 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Allow specific origins (update with your frontend URLs)
-        configuration.setAllowedOriginPatterns(Arrays.asList(
-                "http://localhost:3000",
-                "http://localhost:5173",
-                "http://localhost:4200"
-        ));
+        // Parse allowed origins from properties
+        List<String> origins = Arrays.asList(allowedOrigins.split(","));
+        configuration.setAllowedOriginPatterns(origins);
 
         // Allow all HTTP methods
         configuration.setAllowedMethods(Arrays.asList(
                 "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
         ));
 
-        // Allow all headers
-        configuration.setAllowedHeaders(Arrays.asList("*"));
+        // Allow specific headers (more secure than "*")
+        configuration.setAllowedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Type",
+                "Accept",
+                "Origin",
+                "X-Requested-With",
+                "Cookie"
+        ));
 
-        // Allow credentials (cookies, authorization headers)
+        // Expose headers that frontend can read
+        configuration.setExposedHeaders(Arrays.asList(
+                "Set-Cookie",
+                "Authorization"
+        ));
+
+        // CRITICAL: Allow credentials (cookies)
         configuration.setAllowCredentials(true);
 
         // Cache preflight response for 1 hour
