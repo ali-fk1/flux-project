@@ -9,6 +9,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -37,5 +39,14 @@ public class UserService {
                                   .build()
                   );
                 });
+    }
+
+    public Mono<Void> markVerified(UUID userId) {
+        // Additional business checks can go here (e.g. emit audit event)
+        return userRepository.setEnabledTrue(userId);
+    }
+
+    public Mono<User> getUserByEmail(String email) {
+        return userRepository.findByEmail(email);
     }
 }

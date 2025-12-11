@@ -98,3 +98,108 @@ ALTER TABLE social_accounts
 -- ================================================================
 ALTER TABLE users
     ADD COLUMN enabled BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- ================================================================
+-- Creating an EmailVerificationToken Entity to enhance the verification process
+--
+-- ================================================================
+CREATE TABLE email_verification_tokens (
+                                           id UUID PRIMARY KEY,
+                                           user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                                           token_hash VARCHAR(64) NOT NULL UNIQUE,
+                                           created_at TIMESTAMP NOT NULL,
+                                           expires_at TIMESTAMP NOT NULL,
+                                           used BOOLEAN NOT NULL DEFAULT FALSE,
+                                           used_at TIMESTAMP NULL,
+                                           ip_address VARCHAR(45) NULL
+);
+
+CREATE INDEX idx_email_verification_user ON email_verification_tokens(user_id);
+
+-- ================================================================
+--
+--25/11/2025 2:32 pm
+-- ================================================================
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+                                              id UUID PRIMARY KEY,
+                                              user_id UUID NOT NULL,
+                                              token TEXT NOT NULL,
+                                              created_at TIMESTAMP NOT NULL,
+                                              expires_at TIMESTAMP NOT NULL,
+                                              revoked BOOLEAN DEFAULT FALSE,
+
+                                              CONSTRAINT fk_user
+                                                  FOREIGN KEY (user_id) REFERENCES users(id)
+                                                      ON DELETE CASCADE
+);
+ALTER TABLE email_verification_tokens
+ALTER COLUMN id SET DEFAULT gen_random_uuid();
+
+ALTER TABLE refresh_tokens
+    ALTER COLUMN id SET DEFAULT gen_random_uuid();
+
+
+-- ================================================================
+-- 12/8/2024 7:53
+--25/11/2025 2:32 pm
+-- ================================================================
+-- =========================================
+-- USERS FIXES
+-- =========================================
+
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_email_key;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_users_email_not_null
+    ON users(email)
+    WHERE email IS NOT NULL;
+
+ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+
+
+-- =========================================
+-- SOCIAL ACCOUNTS FIXES
+-- =========================================
+
+-- Make platform_user_id required
+ALTER TABLE social_accounts
+    ALTER COLUMN platform_user_id SET NOT NULL;
+
+-- Add missing uniqueness constraint
+ALTER TABLE social_accounts
+    ADD CONSTRAINT uq_social_platform_user
+        UNIQUE (platform, platform_user_id);
+
+-- Remove useless index
+DROP INDEX IF EXISTS idx_social_accounts_user_platform;
+
+
+-- =========================================
+-- DONE
+-- =========================================
+CREATE TABLE IF NOT EXISTS oauth_states (
+                                            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                                            user_id UUID NOT NULL,
+                                            platform VARCHAR(50) NOT NULL,
+                                            oauth_token VARCHAR(255) NOT NULL UNIQUE,
+                                            token_secret VARCHAR(255) NOT NULL,
+                                            created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                            expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                                            consumed BOOLEAN NOT NULL DEFAULT FALSE,
+
+                                            CONSTRAINT fk_oauth_states_user FOREIGN KEY (user_id)
+                                                REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Index for quick lookup by oauth_token
+CREATE INDEX idx_oauth_states_token ON oauth_states(oauth_token);
+
+-- Index for cleanup of expired states
+CREATE INDEX idx_oauth_states_expires_at ON oauth_states(expires_at);
+
+-- Index for finding unconsumed states
+CREATE INDEX idx_oauth_states_consumed ON oauth_states(consumed) WHERE consumed = FALSE;
+
+
+UPDATE refresh_tokens
+SET revoked = FALSE
+WHERE revoked IS NULL;
