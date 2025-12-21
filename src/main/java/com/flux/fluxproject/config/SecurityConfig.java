@@ -29,7 +29,7 @@ public class SecurityConfig {
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         return http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable()) // Disable CSRF (using token-based auth)
+                .csrf(csrf -> csrf.disable()) //CSRF disabled because tokens are sent via SameSite cookies and endpoints are protected by JWT + OAuth state
                 .formLogin(formLogin -> formLogin.disable()) // No login page
                 .httpBasic(httpBasic -> httpBasic.disable()) // No HTTP Basic
                 .authorizeExchange(auth -> auth

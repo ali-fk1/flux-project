@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
@@ -186,5 +188,21 @@ public class PlatformController {
                             .body("❌ Authentication failed: Invalid or expired OAuth token.\n\n" +
                                     "Please restart the authentication process from your application."));
                 });
+    }
+
+    @GetMapping("/me")
+    public Mono<Map<String, Object>> me(ServerWebExchange exchange) {
+
+        String userId = (String) exchange.getAttributes().get("userId");
+        String email  = (String) exchange.getAttributes().get("userEmail");
+
+        if (userId == null) {
+            return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+        }
+
+        return Mono.just(Map.of(
+                "id", userId,
+                "email", email
+        ));
     }
 }
