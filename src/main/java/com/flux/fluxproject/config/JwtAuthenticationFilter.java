@@ -32,7 +32,6 @@ import java.util.List;
                 "/api/auth/login",
                 "/api/auth/refresh",
                 "/api/auth/register",
-                "/api/X",
                 "/api/x/callback",
                 "/signup",
                 "/verify",
