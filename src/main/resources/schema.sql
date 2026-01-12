@@ -203,3 +203,41 @@ CREATE INDEX idx_oauth_states_consumed ON oauth_states(consumed) WHERE consumed 
 UPDATE refresh_tokens
 SET revoked = FALSE
 WHERE revoked IS NULL;
+
+-- ================================================================
+-- 17/12/2024 10:46 am
+-- created the auth req table to persist state and code verifier
+-- for oauth2.0 X authorization flow
+-- ================================================================
+CREATE TABLE oauth2_authorization_requests (
+                                               id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+                                               provider VARCHAR(32) NOT NULL,
+
+                                               user_id UUID NOT NULL,
+
+                                               state VARCHAR(512) NOT NULL,
+                                               code_verifier VARCHAR(512) NOT NULL,
+
+                                               created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                                               expires_at TIMESTAMPTZ NOT NULL,
+
+                                               consumed BOOLEAN NOT NULL DEFAULT FALSE,
+
+                                               CONSTRAINT fk_oauth2_user
+                                                   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Prevent replay and cross-user abuse
+CREATE UNIQUE INDEX uq_oauth2_provider_state
+    ON oauth2_authorization_requests (provider, state);
+
+-- User-specific cleanup and debugging
+CREATE INDEX idx_oauth2_user_active
+    ON oauth2_authorization_requests (user_id)
+    WHERE consumed = FALSE;
+
+-- Expiry cleanup
+CREATE INDEX idx_oauth2_expires
+    ON oauth2_authorization_requests (expires_at);
+

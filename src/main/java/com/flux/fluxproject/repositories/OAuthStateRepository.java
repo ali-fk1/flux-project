@@ -22,4 +22,6 @@ public interface OAuthStateRepository extends ReactiveCrudRepository<OAuthState,
      * Delete expired states (cleanup job)
      */
     Mono<Long> deleteByExpiresAtBefore(Instant expirationTime);
+
+    Mono<OAuthState> findById (UUID id);
 }
