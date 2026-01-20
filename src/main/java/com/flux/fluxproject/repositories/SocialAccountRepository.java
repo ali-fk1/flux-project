@@ -19,5 +19,9 @@ public interface SocialAccountRepository extends ReactiveCrudRepository<SocialAc
     Mono<SocialAccount> findByUserIdAndPlatform(UUID userId, String platform);
     Mono<SocialAccount> findByPlatformAndPlatformUserId(String platform, String platformUserId);
 
+    Mono<SocialAccount> findByUserId(UUID userId);
+
+    Mono<String> findAuthDataByUserId(UUID userId);
+
     Mono<Void> deleteByUserId(UUID userId);
 }

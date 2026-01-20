@@ -143,7 +143,7 @@ public class XOAuth2Service {
                                     Map<String, Object> tokenData = new HashMap<>();
                                     tokenData.put("access_token", xTokenResponse.getAccessToken());
                                     tokenData.put("refresh_token", xTokenResponse.getRefreshToken());
-                                    tokenData.put("expires_in", xTokenResponse.getExpiresIn());
+//                                    tokenData.put("expires_in", xTokenResponse.getExpiresIn());
                                     tokenData.put("scope", xTokenResponse.getScope());
                                     return encryptionUtil.encrypt(tokenData);
                                 })
