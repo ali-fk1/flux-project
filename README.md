@@ -881,8 +881,6 @@ The project uses **Testcontainers** for integration testing, which automatically
 
 ## 🎥 Demo
 
-This demo shows direct publishing and scheduled posting flows.
-
 ▶️ Watch the demo (unlisted):https://youtu.be/AUPeNMkumTo
 
 ---
