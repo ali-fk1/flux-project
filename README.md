@@ -29,6 +29,7 @@ This project demonstrates a modern **reactive microservice** architecture using:
 5. [Configuration](#-configuration)
 6. [Setup Instructions](#-setup-instructions)
 7. [API Endpoints](#-api-endpoints)
+8. [Demo](#-demo)
 
 ---
 
@@ -875,6 +876,14 @@ mvn verify
 ```
 
 The project uses **Testcontainers** for integration testing, which automatically spins up PostgreSQL containers during test execution.
+
+---
+
+## 🎥 Demo
+
+This demo shows direct publishing and scheduled posting flows.
+
+▶️ Watch the demo (unlisted):https://youtu.be/AUPeNMkumTo
 
 ---
 
