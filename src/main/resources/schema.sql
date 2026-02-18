@@ -241,3 +241,22 @@ CREATE INDEX idx_oauth2_user_active
 CREATE INDEX idx_oauth2_expires
     ON oauth2_authorization_requests (expires_at);
 
+-- ================================================================
+-- 23/1/2026 10:46 am
+-- Altering column names in Posts table
+-- ================================================================
+ALTER TABLE posts
+    RENAME COLUMN scheduled_at TO scheduled_at_utc;
+
+ALTER TABLE posts
+    RENAME COLUMN published_at TO published_at_utc;
+
+ALTER TABLE posts
+    RENAME COLUMN created_at TO created_at_utc;
+
+ALTER TABLE posts
+    RENAME COLUMN updated_at TO updated_at_utc;
+
+ALTER TABLE posts
+    ALTER COLUMN api_payload DROP NOT NULL;
+
