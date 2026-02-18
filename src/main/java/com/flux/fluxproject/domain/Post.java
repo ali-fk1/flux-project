@@ -6,9 +6,7 @@ import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.Instant;
-import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @Getter
@@ -25,25 +23,28 @@ public class Post {
     private UUID userId;
 
     @Column("social_account_id")
-    private Long socialAccountId;
+    private UUID socialAccountId;
 
-    private String platform; // 'twitter', 'facebook', etc.
+    @Column("platform")
+    private String platform; // 'X', 'Instagram', etc.
 
+    @Column("content")
     private String content;
 
     @Column("media_urls")
     private List<String> mediaUrls; // PostgreSQL text[]
 
-    @Column("scheduled_at")
-    private Instant scheduledAt;
+    @Column("scheduled_at_utc")
+    private Instant scheduledAtUtc;
 
-    @Column("published_at")
-    private Instant publishedAt;
+    @Column("published_at_utc")
+    private Instant publishedAtUtc;
 
-    private String status; // 'draft', 'scheduled', etc.
+    @Column("status")
+    private PostStatus status; // 'draft', 'scheduled', etc.
 
     @Column("api_payload")
-    private Map<String, Object> apiPayload; // JSONB
+    private String apiPayload; // JSONB
 
     @Column("error_message")
     private String errorMessage;
@@ -54,9 +55,9 @@ public class Post {
     @Column("max_retries")
     private Integer maxRetries;
 
-    @Column("created_at")
-    private OffsetDateTime createdAt;
+    @Column("created_at_utc")
+    private Instant createdAtUtc;
 
-    @Column("updated_at")
-    private OffsetDateTime updatedAt;
+    @Column("updated_at_utc")
+    private Instant updatedAtUtc;
 }

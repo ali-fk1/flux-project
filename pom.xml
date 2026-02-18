@@ -251,6 +251,14 @@
             <optional>true</optional>
         </dependency>
 
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>r2dbc-postgresql</artifactId>
+            <version>1.1.1.RELEASE</version>
+        </dependency>
+
+
+
     </dependencies>
 
     <build>

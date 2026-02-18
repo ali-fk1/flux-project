@@ -14,5 +14,8 @@ public interface RefreshTokenRepository extends ReactiveCrudRepository<RefreshTo
 
     Mono<Long> deleteByRevokedIsTrue();
 
+    Mono<Long> deleteByExpiresAtBeforeOrRevokedIsTrue(Instant now);
+
+
     Mono<Void> deleteByUserId(UUID userId);
 }

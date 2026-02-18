@@ -6,7 +6,6 @@ import lombok.Data;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @Data
@@ -14,14 +13,14 @@ import java.util.UUID;
 public class PostDTO {
     private UUID id;
     private UUID userId;
-    private Long socialAccountId;
+    private UUID socialAccountId;
     private String platform; // 'twitter', 'facebook', etc.
     private String content;
     private List<String> mediaUrls; // PostgreSQL text[]
     private Instant scheduledAt;
     private Instant publishedAt;
     private String status; // 'draft', 'scheduled', etc.
-    private Map<String, Object> apiPayload; // JSONB
+    private String apiPayload; // JSONB
     private String errorMessage;
     private Integer retryCount;
     private Integer maxRetries;
