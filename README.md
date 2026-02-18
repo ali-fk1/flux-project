@@ -23,6 +23,7 @@ This project demonstrates a modern **reactive microservice** architecture using:
    - [Email Verification](#2-email-verification-system)
    - [X (Twitter) OAuth2 Integration](#3-x-twitter-oauth2-integration-with-pkce)
    - [Post Management](#4-post-management-with-auto-refresh)
+   - [Post Scheduling](#5-post-scheduling-system)
    - [Token Security](#5-token-security-and-encryption)
    - [Cleanup Schedulers](#6-automatic-cleanup-schedulers)
 4. [Security Architecture](#-security-architecture)
@@ -386,7 +387,594 @@ public Mono<XPostResponse> postTextWithAutoRefresh(UUID userId, String text)
 
 ---
 
-### 5. Token Security and Encryption
+
+### 5. Post Scheduling System
+
+#### The Challenge
+Users need the ability to schedule posts for future publication rather than posting immediately. This requires a robust background job system that can reliably publish posts at the scheduled time, handle failures, and prevent duplicate publishing.
+
+#### How I Built It
+I implemented a **scheduler-based system** with database-backed job queuing, optimistic locking, and atomic operation controls.
+
+**The Complete Architecture:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  SCHEDULING FLOW                             │
+└─────────────────────────────────────────────────────────────┘
+
+User → POST /api/schedule {text, scheduledAtUtc}
+         ↓
+    Save to posts table (status='scheduled')
+         ↓
+    Spring @Scheduled task runs every 30s
+         ↓
+    Database atomically claims due posts (FOR UPDATE SKIP LOCKED)
+         ↓
+    Status: 'scheduled' → 'publishing'
+         ↓
+    Post to X API with auto-refresh
+         ↓
+    Success: status → 'published'
+    Failure: status → 'failed', retry_count++
+```
+
+---
+
+#### Implementation Details
+
+**1. Scheduling a Post** (`PostSchedulingController.java`)
+
+```java
+@PostMapping("/api/schedule")
+public Mono<ResponseEntity> schedulePost(
+    @RequestBody ScheduledPostRequest request,
+    ServerWebExchange exchange) {
+    
+    UUID userId = UUID.fromString(exchange.getAttribute("userId"));
+    
+    return schedulingService.saveScheduledPost(request, userId)
+        .thenReturn(ResponseEntity.noContent().build());
+}
+```
+
+**My Design Philosophy:**
+- Validate user authentication via JWT filter
+- Check for required fields (text, scheduledAtUtc)
+- Save post with `status='scheduled'`
+- Return immediately - publishing happens in background
+
+**Post Model Structure:**
+```java
+@Table("posts")
+public class Post {
+    private UUID id;
+    private UUID userId;
+    private UUID socialAccountId;
+    private String platform;           // 'X', 'Instagram', etc.
+    private String content;            // Post text
+    private List mediaUrls;    // Future: image attachments
+    private Instant scheduledAtUtc;    // When to publish
+    private Instant publishedAtUtc;    // When it was published
+    private PostStatus status;         // Lifecycle state
+    private String errorMessage;       // If failed, why?
+    private Integer retryCount;        // Attempts made
+    private Integer maxRetries;        // Max 3 attempts
+}
+```
+
+**Status Lifecycle:**
+```java
+public enum PostStatus {
+    draft,       // Created but not scheduled
+    scheduled,   // Waiting to be published
+    publishing,  // Currently being posted
+    published,   // Successfully posted
+    failed,      // All retries exhausted
+    cancelled    // User cancelled
+}
+```
+
+---
+
+**2. The Scheduler** (`PostScheduler.java`)
+
+```java
+@Component
+public class PostScheduler {
+    
+    private final SchedulingService schedulingService;
+    private final AtomicBoolean running = new AtomicBoolean(false);
+    
+    @Scheduled(fixedDelay = 30000)  // Every 30 seconds
+    public void checkDuePosts() {
+        // Prevent overlapping executions
+        if (!running.compareAndSet(false, true)) {
+            log.info("Scheduler already running, skipping this tick");
+            return;
+        }
+        
+        schedulingService.executePosting(15)
+            .doFinally(sig -> running.set(false))
+            .subscribe();
+    }
+}
+```
+
+**Why AtomicBoolean?**
+
+This is a **critical concurrency control mechanism**. Here's the problem it solves:
+
+**Without AtomicBoolean:**
+```
+Time 0s:  Scheduler starts (takes 40s to process)
+Time 30s: Scheduler starts again → TWO instances running!
+         → Risk of duplicate posts
+         → Database contention
+         → Race conditions
+```
+
+**With AtomicBoolean:**
+```java
+if (!running.compareAndSet(false, true)) {
+    return;  // Skip if already running
+}
+```
+
+**How `compareAndSet` works:**
+1. **Atomically** checks if `running == false`
+2. If true, sets `running = true` and returns `true`
+3. If false (already running), returns `false` without changing value
+4. This happens in **one atomic CPU instruction** - no race condition possible
+
+**Example Scenario:**
+```
+Thread 1: compareAndSet(false, true) → true  (proceeds to execute)
+Thread 2: compareAndSet(false, true) → false (skips execution)
+```
+
+Even if two threads call this simultaneously, only ONE will succeed due to atomic operation.
+
+**After execution:**
+```java
+.doFinally(sig -> running.set(false))  // Reset flag when done
+```
+
+This ensures the next scheduled run can proceed.
+
+**Production Note:**
+*This is a simple solution for preventing concurrent executions. In production, I would implement **distributed rate limiting** using Redis with a distributed lock pattern (e.g., Redisson). This would:*
+- *Work across multiple server instances (horizontal scaling)*
+- *Provide automatic lock expiration (if server crashes)*
+- *Enable monitoring of lock acquisition/release*
+- *Support more sophisticated locking strategies*
+
+*The AtomicBoolean approach works well for single-instance deployments but doesn't prevent concurrent execution across multiple servers.*
+
+---
+
+**3. Claiming Posts** (`PostRepository.java`)
+
+This is where the **real magic happens** - using PostgreSQL's row-level locking to prevent duplicate posting:
+
+```java
+@Query("""
+WITH due AS (
+    SELECT id 
+    FROM posts 
+    WHERE status = 'scheduled' 
+      AND scheduled_at_utc <= now()
+    ORDER BY scheduled_at_utc ASC
+    FOR UPDATE SKIP LOCKED
+    LIMIT :batchSize
+)
+UPDATE posts p
+SET status = 'publishing',
+    updated_at_utc = now()
+FROM due
+WHERE p.id = due.id
+RETURNING *
+""")
+Flux claimDuePosts(int batchSize);
+```
+
+**Breaking Down This Query:**
+
+**Step 1: Find Due Posts**
+```sql
+WHERE status = 'scheduled' 
+  AND scheduled_at_utc <= now()
+ORDER BY scheduled_at_utc ASC
+```
+- Only posts that are scheduled and past their scheduled time
+- Oldest first (FIFO order)
+
+**Step 2: Lock with `FOR UPDATE SKIP LOCKED`**
+This is the **key to preventing duplicates**:
+
+```sql
+FOR UPDATE SKIP LOCKED
+```
+
+**What this does:**
+- `FOR UPDATE`: Locks the selected rows for update
+- `SKIP LOCKED`: If a row is already locked, skip it
+
+**Real-World Scenario:**
+```
+Time: 10:00:00
+Post A: scheduled_at_utc = 09:50:00, status = 'scheduled'
+
+Server Instance 1: SELECT ... FOR UPDATE SKIP LOCKED
+  → Locks Post A
+  
+Server Instance 2: SELECT ... FOR UPDATE SKIP LOCKED
+  → Sees Post A is locked → SKIPS it
+  
+Result: Only ONE instance processes Post A
+```
+
+**Without SKIP LOCKED:**
+```
+Instance 1: SELECT ... FOR UPDATE
+  → Locks Post A
+
+Instance 2: SELECT ... FOR UPDATE
+  → WAITS for lock to be released
+  → Eventually processes same post (duplicate!)
+```
+
+**Step 3: Update Status Atomically**
+```sql
+UPDATE posts p
+SET status = 'publishing',
+    updated_at_utc = now()
+FROM due
+WHERE p.id = due.id
+RETURNING *
+```
+
+The status change happens **in the same transaction** as the SELECT:
+- Atomic operation - no race condition
+- Status changes from `scheduled` → `publishing`
+- Returns the updated rows
+
+**Why this matters:**
+Even if two schedulers run simultaneously:
+1. Both query for `status='scheduled'`
+2. Lock prevents duplicate selection
+3. Status immediately changes to `publishing`
+4. Second scheduler finds nothing with `status='scheduled'`
+
+---
+
+**4. Execution Flow** (`SchedulingService.java`)
+
+```java
+public Flux executePosting(int batchSize) {
+    return postRepository.claimDuePosts(batchSize)
+        .flatMap(duePost ->
+            xPostService.postTextWithAutoRefresh(
+                duePost.getUserId(), 
+                duePost.getContent()
+            )
+            .flatMap(resp -> 
+                postRepository.markPublished(duePost.getId(), Instant.now())
+            )
+            .onErrorResume(e -> 
+                postRepository.markFailed(duePost.getId(), safeMsg(e))
+            )
+        , 2);  // Concurrency of 2
+}
+```
+
+**My Implementation Strategy:**
+
+**Batch Processing:**
+```java
+claimDuePosts(15)  // Process up to 15 posts per run
+```
+- Prevents overwhelming the X API
+- Limits database load
+- Allows graceful failure handling
+
+**Concurrency Control:**
+```java
+.flatMap(duePost -> ..., 2)
+```
+- Process 2 posts concurrently (not sequentially)
+- Balances throughput with API rate limits
+- Still within X's rate limit boundaries
+
+**Error Handling:**
+```java
+.flatMap(resp -> markPublished(postId, now))
+.onErrorResume(e -> markFailed(postId, error))
+```
+
+**Success path:**
+1. Post succeeds
+2. Update status to `published`
+3. Record `publishedAtUtc` timestamp
+4. Clear any error message
+
+**Failure path:**
+1. Post fails (network error, X API rejection, etc.)
+2. Update status to `failed`
+3. Record error message
+4. Increment `retry_count`
+
+**Retry Logic:**
+```java
+@Column("retry_count")
+private Integer retryCount;
+
+@Column("max_retries")
+private Integer maxRetries;  // Set to 3
+```
+
+Posts with `retry_count < max_retries` can be:
+- Manually retried by user
+- Automatically retried (future enhancement)
+- Reset to `scheduled` status
+
+---
+
+**5. Status Transitions**
+
+```
+┌─────────────────────────────────────────────────────┐
+│              POST STATUS LIFECYCLE                   │
+└─────────────────────────────────────────────────────┘
+
+    draft
+      ↓ (user schedules)
+  scheduled ←──────────────┐
+      ↓ (scheduler claims) │ (manual retry)
+  publishing               │
+      ↓                    │
+   Success?                │
+      ↓                    │
+    Yes → published        │
+    No  → failed ──────────┘
+            ↓ (max retries)
+       [stays failed]
+```
+
+**Database Queries:**
+
+```java
+// Mark as published
+@Query("""
+UPDATE posts
+SET status = 'published',
+    published_at_utc = :publishedAt,
+    error_message = NULL,
+    updated_at_utc = now()
+WHERE id = :postId
+RETURNING *
+""")
+Mono markPublished(UUID postId, Instant publishedAt);
+
+// Mark as failed
+@Query("""
+UPDATE posts 
+SET status = 'failed',
+    error_message = :error,
+    retry_count = retry_count + 1,
+    updated_at_utc = now()
+WHERE id = :postId
+RETURNING *
+""")
+Mono markFailed(UUID postId, String error);
+```
+
+---
+
+#### Key Design Decisions
+
+**1. Database-Backed Queue**
+- Used PostgreSQL as job queue instead of Redis/RabbitMQ
+- Simpler architecture (one less service to manage)
+- Leverages database transactions for consistency
+- Good enough for current scale
+
+**2. Pessimistic Locking**
+- `FOR UPDATE SKIP LOCKED` prevents duplicate processing
+- No need for distributed locks
+- Database handles concurrency
+
+**3. Status-Based State Machine**
+- Clear lifecycle: scheduled → publishing → published/failed
+- Easy to query and debug
+- Supports manual intervention
+
+**4. Batch Processing**
+- Process 15 posts per tick (30 seconds)
+- Prevents API rate limiting
+- Limits blast radius if something goes wrong
+
+**5. Concurrency of 2**
+- Post 2 tweets simultaneously
+- Balances speed with safety
+- Within X's rate limits
+
+---
+
+#### Security Considerations
+
+**Authorization:**
+```java
+UUID userId = UUID.fromString(exchange.getAttribute("userId"));
+```
+- User ID extracted from JWT
+- Only authenticated users can schedule posts
+- Users can only schedule posts for their own accounts
+
+**Input Validation:**
+```java
+if (request.getText() == null || request.getText().isBlank() 
+    || request.getScheduledAtUtc() == null) {
+    return Mono.just(ResponseEntity.badRequest().build());
+}
+```
+- Prevent empty posts
+- Require scheduled time
+- Validate on server-side (never trust client)
+
+**Social Account Verification:**
+```java
+return socialAccountRepository.findByUserIdAndPlatform(userId, "X")
+    .flatMap(socialAccount -> {
+        // Create post linked to this social account
+    });
+```
+- Verify user has connected X account
+- Link post to specific social account
+- Use that account's OAuth tokens for posting
+
+---
+
+#### Performance Optimizations
+
+**1. Indexed Queries**
+```sql
+CREATE INDEX idx_posts_scheduled_status 
+ON posts(scheduled_at_utc, status);
+```
+- Fast lookup for due posts
+- Composite index on scheduled time + status
+- Critical for scheduler performance
+
+**2. Batch Size Tuning**
+```java
+claimDuePosts(15)  // Adjustable based on load
+```
+- Balance between throughput and latency
+- Prevents long-running transactions
+- Adjustable per deployment
+
+**3. Fixed Delay vs Fixed Rate**
+```java
+@Scheduled(fixedDelay = 30000)
+```
+- `fixedDelay`: Wait 30s AFTER previous execution completes
+- Prevents queue buildup if processing takes > 30s
+- More stable than `fixedRate` under load
+
+---
+
+#### What I Learned
+
+**Database Concurrency:**
+- `FOR UPDATE SKIP LOCKED` is a powerful primitive for distributed work
+- PostgreSQL can serve as a reliable job queue
+- Row-level locking prevents duplicate processing
+
+**Atomic Operations:**
+- `AtomicBoolean.compareAndSet()` prevents race conditions
+- Single atomic instruction - no locks needed
+- Simple but effective for single-instance deployments
+
+**Reactive Error Handling:**
+- `.onErrorResume()` for graceful degradation
+- Record failures in database for debugging
+- Separate success and failure paths
+
+**State Machine Design:**
+- Clear status transitions prevent ambiguity
+- Easy to add new states (e.g., `paused`)
+- Status field enables powerful queries
+
+---
+
+#### Future Enhancements
+
+**Short-term:**
+- ✅ Basic scheduling (completed)
+- 🔄 Automatic retry with exponential backoff
+- 📊 User dashboard showing scheduled/published posts
+- 🗑️ Cancel scheduled posts
+
+**Long-term:**
+- 🔁 Distributed rate limiting with Redis
+- 📈 Post analytics (views, likes, retweets)
+- 📅 Recurring posts (daily, weekly)
+- 🖼️ Media attachment support
+- 🌐 Multi-platform scheduling (Instagram, LinkedIn)
+- 🧪 A/B testing for post times
+- 📊 Optimal posting time suggestions
+
+**Production Readiness:**
+- Add distributed locks for multi-instance deployments
+- Implement circuit breaker for X API calls
+- Add metrics and monitoring (Prometheus/Grafana)
+- Dead letter queue for permanently failed posts
+- Admin dashboard for manual intervention
+
+---
+
+## API Endpoint
+
+### Schedule Post
+```http
+POST /api/schedule
+Authorization: Cookie (access_token)
+Content-Type: application/json
+
+{
+  "text": "Hello from scheduled post! 🚀",
+  "scheduledAtUtc": "2026-02-19T10:00:00Z"
+}
+
+Response: 204 No Content
+```
+
+**Request Validation:**
+- `text`: Required, non-blank
+- `scheduledAtUtc`: Required, ISO-8601 format
+- Must be authenticated (JWT in cookie)
+- Must have connected X account
+
+**Response Codes:**
+- `204 No Content`: Post scheduled successfully
+- `400 Bad Request`: Invalid input (missing text or time)
+- `401 Unauthorized`: Not authenticated or invalid JWT
+- `404 Not Found`: User doesn't have connected X account
+
+---
+
+## Database Schema
+
+```sql
+CREATE TABLE posts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    social_account_id UUID NOT NULL REFERENCES social_accounts(id) ON DELETE CASCADE,
+    platform VARCHAR(50) NOT NULL,
+    content TEXT,
+    media_urls TEXT[],
+    scheduled_at_utc TIMESTAMP WITH TIME ZONE NOT NULL,
+    published_at_utc TIMESTAMP WITH TIME ZONE,
+    status VARCHAR(20) DEFAULT 'scheduled'
+        CHECK (status IN ('draft', 'scheduled', 'publishing', 'published', 'failed', 'cancelled')),
+    api_payload JSONB,
+    error_message TEXT,
+    retry_count INTEGER DEFAULT 0,
+    max_retries INTEGER DEFAULT 3,
+    created_at_utc TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at_utc TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Critical indexes for scheduler performance
+CREATE INDEX idx_posts_scheduled_status ON posts(scheduled_at_utc, status);
+CREATE INDEX idx_posts_user_id ON posts(user_id);
+CREATE INDEX idx_posts_status ON posts(status);
+```
+
+---
+
+### 6. Token Security and Encryption
 
 #### Why Encrypt OAuth Tokens?
 Storing OAuth tokens in plain text is a **critical security vulnerability**. I implemented **AES-256-GCM encryption** to protect these sensitive credentials.
@@ -464,7 +1052,7 @@ auth_data TEXT NOT NULL  -- Stores base64-encoded encrypted JSON
 
 ---
 
-### 6. Automatic Cleanup Schedulers
+### 7. Automatic Cleanup Schedulers
 
 #### The Problem
 Over time, expired tokens and consumed OAuth requests accumulate in the database, wasting space and creating potential security risks.
