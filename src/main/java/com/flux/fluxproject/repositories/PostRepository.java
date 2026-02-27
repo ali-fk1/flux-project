@@ -1,6 +1,7 @@
 package com.flux.fluxproject.repositories;
 
 import com.flux.fluxproject.domain.Post;
+import com.flux.fluxproject.domain.PostStatus;
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import reactor.core.publisher.Flux;
@@ -51,4 +52,38 @@ WHERE id = :postId
 RETURNING *
 """)
     Mono<Post> markFailed(UUID postId , String error);
+
+    Flux<Post> findByUserId(UUID userId);
+
+    @Query("""
+SELECT *
+FROM posts
+WHERE user_id = :userId
+  AND (:status IS NULL OR status = :status)
+ORDER BY scheduled_at_utc DESC, id DESC
+LIMIT :limit
+""")
+    Flux<Post> findFirstPage(UUID userId,
+                             PostStatus status,
+                             int limit);
+
+    @Query("""
+SELECT *
+FROM posts
+WHERE user_id = :userId
+  AND (:status IS NULL OR status = :status)
+  AND (
+        scheduled_at_utc < :lastScheduledAt
+        OR (scheduled_at_utc = :lastScheduledAt AND id < :lastId)
+      )
+ORDER BY scheduled_at_utc DESC, id DESC
+LIMIT :limit
+""")
+    Flux<Post> findNextPage(UUID userId,
+                            PostStatus status,
+                            Instant lastScheduledAt,
+                            UUID lastId,
+                            int limit);
+
 }
+

@@ -260,3 +260,9 @@ ALTER TABLE posts
 ALTER TABLE posts
     ALTER COLUMN api_payload DROP NOT NULL;
 
+-- ================================================================
+-- 26/2/2026 11:41 pm
+-- creating idx on posts table for cursor pagination
+-- ================================================================
+CREATE INDEX idx_posts_user_sched_id
+    ON posts (user_id, scheduled_at_utc DESC, id DESC);
