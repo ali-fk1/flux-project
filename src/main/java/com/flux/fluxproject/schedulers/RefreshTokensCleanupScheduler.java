@@ -18,7 +18,7 @@ public class RefreshTokensCleanupScheduler {
 
     private final AtomicBoolean running = new AtomicBoolean(false);
 
-    @Scheduled(fixedDelay =  30000)
+    @Scheduled(fixedDelay =  300000)
     public void refreshTokensCleanupScheduler() {
         if (!running.compareAndSet(false,true)){
             log.warn("Cleanup already running, skipping this tick");

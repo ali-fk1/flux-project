@@ -60,4 +60,7 @@ public class Post {
 
     @Column("updated_at_utc")
     private Instant updatedAtUtc;
+
+    @Column("deleted_at_utc")
+    private Instant deletedAtUtc;
 }

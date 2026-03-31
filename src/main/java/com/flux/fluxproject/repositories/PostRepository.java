@@ -85,5 +85,17 @@ LIMIT :limit
                             UUID lastId,
                             int limit);
 
+    Mono<Post> findById(UUID id);
+
+    Mono<Void> deleteById(UUID id);
+
+    @Query("""
+SELECT *
+FROM posts
+WHERE status = 'deleted'
+  AND deleted_at_utc <= now() - (:days * interval '1 day')
+""")
+    Flux<Post> findDeletedOlderThan(int days);
+
 }
 

@@ -7,5 +7,6 @@ public enum PostStatus {
     publishing,
     published,
     failed,
-    cancelled
+    cancelled,
+    deleted
 }
