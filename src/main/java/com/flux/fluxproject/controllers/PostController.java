@@ -6,10 +6,8 @@ import com.flux.fluxproject.model.PostViewResponse;
 import com.flux.fluxproject.services.PostService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
@@ -42,5 +40,10 @@ public class PostController {
         );
     }
 
+    @DeleteMapping("/posts/{postId}")
+    public Mono<ResponseEntity<Void>> deletePost(@PathVariable UUID postId , ServerWebExchange exchange) {
+        UUID userId = UUID.fromString(exchange.getAttribute("userId").toString());
+        return postService.deletePost(userId , postId).thenReturn(ResponseEntity.noContent().build());
+    }
 
 }

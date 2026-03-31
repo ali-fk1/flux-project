@@ -266,3 +266,32 @@ ALTER TABLE posts
 -- ================================================================
 CREATE INDEX idx_posts_user_sched_id
     ON posts (user_id, scheduled_at_utc DESC, id DESC);
+
+-- ================================================================
+-- 26/3/2026 11:41 pm
+-- altering post table to add the deleted_at_utc column
+-- ================================================================
+ALTER TABLE posts
+    ADD COLUMN deleted_at_utc TIMESTAMP WITH TIME ZONE;
+
+CREATE INDEX idx_posts_deleted_at
+    ON posts (deleted_at_utc)
+    WHERE status = 'deleted';
+
+ALTER TABLE posts DROP CONSTRAINT posts_status_check;
+
+ALTER TABLE posts
+    ADD CONSTRAINT posts_status_check
+        CHECK (status IN (
+                          'draft',
+                          'scheduled',
+                          'processing',
+                          'publishing',
+                          'published',
+                          'failed',
+                          'cancelled',
+                          'deleted'
+            ));
+
+ALTER TABLE posts
+    ALTER COLUMN api_payload TYPE TEXT;

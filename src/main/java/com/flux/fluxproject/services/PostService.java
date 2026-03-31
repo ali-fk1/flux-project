@@ -10,10 +10,13 @@ import com.flux.fluxproject.repositories.PostRepository;
 import com.flux.fluxproject.util.CursorUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -121,4 +124,27 @@ public class PostService {
                         log.error("Error while fetching posts for userId={}", userId, error)
                 );
     }
+
+    public Mono<Void> deletePost(UUID userId, UUID postId) {
+        return postRepository.findById(postId)
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Post not found")))
+                .flatMap(post -> {
+                    if (!post.getUserId().equals(userId)) {
+                        return Mono.error(new ResponseStatusException(HttpStatus.FORBIDDEN, "Unauthorized"));
+                    }
+                    if (post.getStatus() != PostStatus.scheduled &&
+                            post.getStatus() != PostStatus.draft) {
+                        return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot delete this post"));
+                    }
+
+                    post.setStatus(PostStatus.deleted);
+                    post.setDeletedAtUtc(Instant.now());
+                    return postRepository.save(post)
+                            .doOnSuccess(p -> log.info("Saved post with status {}", p.getStatus()))
+                            .doOnError(e -> log.error("ERROR WHILE SAVING POST", e))
+                            .then();
+                });
+    }
+
+
 }
