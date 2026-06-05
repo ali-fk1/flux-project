@@ -59,7 +59,6 @@ public class EmailService {
                     log.info("📧 Verification link created:");
                     log.info("  Full link: {}", verificationLink);
                     log.info("  Masked: {}", mask(verificationLink));
-
                     final String uri = "/" + domain + "/messages";
 
                     return webClient.post()

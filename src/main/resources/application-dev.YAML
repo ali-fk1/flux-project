@@ -1,0 +1,57 @@
+spring:
+  r2dbc:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASS}
+
+  cloud:
+    aws:
+      region:
+        static: ${AWS_DEFAULT_REGION}
+
+x:
+  api-key: ${X_API_KEY}
+  api-secret: ${X_API_SECRET_KEY}
+  callback-url: ${X_CALLBACK_URL}
+  redirect-uri: ${X_V2_CALLBACK_URL}
+
+  client-id: ${X_OAUTH2_CLIENT_ID}
+  client-secret: ${X_OAUTH2_CLIENT_SECRET}
+  code-verifier-length: ${CODE_VERIFIER_LENGTH}
+
+aes:
+  secret-key: ${AES_SECRET_KEY}
+  auth-secret-key: ${AES_AUTHENTICATION_KEY}
+
+mailgun:
+  api-key: ${MAILGUN_API_KEY}
+  domain: ${DOMAIN}
+
+aws:
+  access-id: ${AWS_ACCESS_KEY_ID}
+  secret-access-key: ${AWS_SECRET_ACCESS_KEY}
+  default-region: ${AWS_DEFAULT_REGION}
+
+  s3:
+    bucket-name: ${AWS_S3_BUCKET_NAME}
+
+app:
+  frontend-url: ${FRONTEND_URL}
+  backend-url: ${BACKEND_URL}
+
+jwt:
+  access-secret: ${JWT_ACCESS_SECRET}
+  refresh-secret: ${JWT_REFRESH_SECRET}
+
+  access-token:
+    expiration: 900
+
+  refresh-token:
+    expiration: 2592000
+
+cookie:
+  secure: false
+  same-site: Strict
+
+cors:
+  allowed-origins: http://localhost:5173,http://localhost:5174
