@@ -4,6 +4,12 @@ spring:
     username: ${DB_USER}
     password: ${DB_PASS}
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8081/realms/Flux
+
   cloud:
     aws:
       region:
