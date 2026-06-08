@@ -29,11 +29,18 @@ public class SecurityConfig {
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         return http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable()) //CSRF disabled because tokens are sent via SameSite cookies and endpoints are protected by JWT + OAuth state
-                .formLogin(formLogin -> formLogin.disable()) // No login page
-                .httpBasic(httpBasic -> httpBasic.disable()) // No HTTP Basic
+                .csrf(csrf -> csrf.disable())
+                .formLogin(formLogin -> formLogin.disable())
+                .httpBasic(httpBasic -> httpBasic.disable())
+
+                .oauth2ResourceServer(oauth2 ->
+                        oauth2.jwt(jwt -> {})
+                )
+
                 .authorizeExchange(auth -> auth
-                        .anyExchange().permitAll() // Allow all for now (JWT filter handles auth)
+                        .pathMatchers("/api/test/public").permitAll()
+                        .pathMatchers("/api/test/private").authenticated()
+                        .anyExchange().permitAll()
                 )
                 .build();
     }
