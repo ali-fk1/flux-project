@@ -1,5 +1,6 @@
 package com.flux.fluxproject.controllers;
 
+import com.flux.fluxproject.config.KeycloakPrincipalExtractor;
 import com.flux.fluxproject.repositories.OAuth2AuthRequestRepository;
 import com.flux.fluxproject.services.X.XOAuth2Service;
 import lombok.RequiredArgsConstructor;
@@ -8,7 +9,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
 
@@ -16,7 +16,6 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api")
@@ -26,13 +25,16 @@ public class XOAuth2Controller {
 
     private final XOAuth2Service xOAuth2Service;
     private final OAuth2AuthRequestRepository repository;
+    private final KeycloakPrincipalExtractor extractor;
+
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
 
     @PostMapping("/x")
-    public Mono<String> startAuthFlow(ServerWebExchange serverWebExchange) {
-        return xOAuth2Service.buildAuthorizationUrl(serverWebExchange);
+    public Mono<String> startAuthFlow() {
+        return extractor.resolveLocalUserId()
+                .flatMap(userId -> xOAuth2Service.buildAuthorizationUrl(userId));
     }
 
     @GetMapping("/x/callback")
@@ -77,21 +79,9 @@ public class XOAuth2Controller {
     }
 
     @GetMapping("/x/status")
-    public Mono<ResponseEntity<Map<String, Object>>> checkXConnectionStatus(ServerWebExchange serverWebExchange) {
-        String userIdStr = serverWebExchange.getAttribute("userId");
-
-        if (userIdStr == null) {
-            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
-        }
-
-        UUID userId;
-        try {
-            userId = UUID.fromString(userIdStr);
-        } catch (IllegalArgumentException e) {
-            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
-        }
-
-        return xOAuth2Service.checkConnectionStatus(userId)
+    public Mono<ResponseEntity<Map<String, Object>>> checkXConnectionStatus() {
+        return extractor.resolveLocalUserId()
+                .flatMap(userId -> xOAuth2Service.checkConnectionStatus(userId))
                 .map(isConnected -> {
                     Map<String, Object> response = new HashMap<>();
                     response.put("connected", isConnected);

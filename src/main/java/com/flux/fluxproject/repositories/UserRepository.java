@@ -10,7 +10,7 @@
     public interface UserRepository extends ReactiveCrudRepository<User, UUID> {
         Mono<User> findByEmail(String email);
 
-
+        Mono<User> findByKeycloakId(String keycloakId);
 
         // simple update query to set enabled (verified)
         @Query("UPDATE users SET enabled = true, updated_at = now() WHERE id = :id")

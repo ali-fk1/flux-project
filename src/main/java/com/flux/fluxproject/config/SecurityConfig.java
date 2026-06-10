@@ -5,8 +5,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
@@ -19,8 +17,8 @@ import java.util.List;
 @EnableWebFluxSecurity
 public class SecurityConfig {
 
-//    @Value("${app.frontend-url:http://localhost:5173}")
-//    private String frontendUrl;
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendUrl;
 
     @Value("${cors.allowed-origins:http://localhost:5173}")
     private String allowedOrigins;
@@ -32,15 +30,19 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .formLogin(formLogin -> formLogin.disable())
                 .httpBasic(httpBasic -> httpBasic.disable())
-
-                .oauth2ResourceServer(oauth2 ->
-                        oauth2.jwt(jwt -> {})
-                )
-
                 .authorizeExchange(auth -> auth
-                        .pathMatchers("/api/test/public").permitAll()
-                        .pathMatchers("/api/test/private").authenticated()
-                        .anyExchange().permitAll()
+                        .pathMatchers(
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/webjars/**",
+                                "/api/x/callback"
+
+                        ).permitAll()
+                        .anyExchange().authenticated()
+                )
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> {})
                 )
                 .build();
     }
@@ -48,45 +50,21 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-
-        // Parse allowed origins from properties
         List<String> origins = Arrays.asList(allowedOrigins.split(","));
         configuration.setAllowedOriginPatterns(origins);
-
-        // Allow all HTTP methods
         configuration.setAllowedMethods(Arrays.asList(
                 "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
         ));
-
-        // Allow specific headers (more secure than "*")
         configuration.setAllowedHeaders(Arrays.asList(
-                "Authorization",
-                "Content-Type",
-                "Accept",
-                "Origin",
-                "X-Requested-With",
-                "Cookie"
+                "Authorization", "Content-Type", "Accept",
+                "Origin", "X-Requested-With"
         ));
-
-        // Expose headers that frontend can read
-        configuration.setExposedHeaders(Arrays.asList(
-                "Set-Cookie",
-                "Authorization"
-        ));
-
-        // CRITICAL: Allow credentials (cookies)
+        configuration.setExposedHeaders(List.of("Authorization"));
         configuration.setAllowCredentials(true);
-
-        // Cache preflight response for 1 hour
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
     }
 }
