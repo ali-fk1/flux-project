@@ -1,5 +1,6 @@
 package com.flux.fluxproject.controllers;
 
+import com.flux.fluxproject.config.KeycloakPrincipalExtractor;
 import com.flux.fluxproject.model.ScheduledPostRequest;
 import com.flux.fluxproject.services.X.SchedulingService;
 import lombok.RequiredArgsConstructor;
@@ -9,10 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
-
-import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
@@ -21,22 +19,15 @@ import java.util.UUID;
 public class PostSchedulingController {
 
     private final SchedulingService schedulingService;
+    private final KeycloakPrincipalExtractor extractor;
 
     @PostMapping("/schedule")
-    public Mono<ResponseEntity<Void>> schedulePost(@RequestBody ScheduledPostRequest scheduledPostRequest ,
-                                                                   ServerWebExchange serverWebExchange){
-        log.info("{}" ,scheduledPostRequest.toString() );
-        UUID userId = UUID.fromString(serverWebExchange.getAttribute("userId").toString());
-        if(userId == null){
-            log.error("Null Id");
-            return Mono.just(ResponseEntity.status(401).build());
-        }
-
-        if (scheduledPostRequest.getText()==null || scheduledPostRequest.getText().isBlank() || scheduledPostRequest.getScheduledAtUtc() == null){
+    public Mono<ResponseEntity<Void>> schedulePost(@RequestBody ScheduledPostRequest request) {
+        if (request.getText() == null || request.getText().isBlank() || request.getScheduledAtUtc() == null) {
             return Mono.just(ResponseEntity.badRequest().build());
         }
-
-        return schedulingService.saveScheduledPost(scheduledPostRequest , userId)
-                .thenReturn(ResponseEntity.noContent().build());
+        return extractor.resolveLocalUserId()
+                .flatMap(userId -> schedulingService.saveScheduledPost(request, userId))
+                .thenReturn(ResponseEntity.noContent().<Void>build());
     }
 }

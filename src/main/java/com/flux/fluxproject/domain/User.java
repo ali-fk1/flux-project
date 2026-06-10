@@ -32,4 +32,7 @@ public class User {
     private OffsetDateTime updatedAt;
 
     private Boolean enabled;
+
+    @Column("keycloak_id")
+    private String keycloakId;
 }

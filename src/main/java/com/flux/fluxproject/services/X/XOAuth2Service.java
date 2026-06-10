@@ -19,7 +19,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
 
@@ -57,18 +56,11 @@ public class XOAuth2Service {
     private final SocialAccountRepository socialAccountRepository;
     private final OAuth2AuthRequestRepository oAuth2AuthRequestRepository;
 
-    public Mono<String> buildAuthorizationUrl(ServerWebExchange serverWebExchange) {
+    public Mono<String> buildAuthorizationUrl(UUID userId) {
         try {
             String codeVerifier = OAuth2PKCEUtil.generateCodeVerifier(length);
             String codeChallenge = OAuth2PKCEUtil.generateCodeChallenge(codeVerifier);
             String state = OAuth2PKCEUtil.generateState();
-
-            String userIdStr = serverWebExchange.getAttribute("userId");
-            if (userIdStr == null) {
-                return Mono.error(new IllegalStateException("Unauthorized: userId missing"));
-            }
-
-            UUID userId = UUID.fromString(userIdStr);
 
             OAuth2AuthRequest oauth2AuthRequest = OAuth2AuthRequest.builder()
                     .userId(userId)

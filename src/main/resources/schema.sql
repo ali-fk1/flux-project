@@ -295,3 +295,9 @@ ALTER TABLE posts
 
 ALTER TABLE posts
     ALTER COLUMN api_payload TYPE TEXT;
+-- ================================================================
+-- 09/06/2026 1:34 pm
+-- altering users table to configure the migration to keycloak
+-- ================================================================
+ALTER TABLE users ADD COLUMN keycloak_id VARCHAR(255) UNIQUE;
+CREATE UNIQUE INDEX idx_users_keycloak_id ON users(keycloak_id);
