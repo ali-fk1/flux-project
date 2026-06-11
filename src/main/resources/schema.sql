@@ -301,3 +301,16 @@ ALTER TABLE posts
 -- ================================================================
 ALTER TABLE users ADD COLUMN keycloak_id VARCHAR(255) UNIQUE;
 CREATE UNIQUE INDEX idx_users_keycloak_id ON users(keycloak_id);
+
+-- ================================================================
+-- 11/06/2026 10:05 AM
+-- Drop legacy pre-Keycloak tables and columns
+-- ================================================================
+
+-- Drop tables (CASCADE handles any FK dependencies)
+DROP TABLE IF EXISTS email_verification_tokens CASCADE;
+DROP TABLE IF EXISTS oauth_states CASCADE;
+DROP TABLE IF EXISTS refresh_tokens CASCADE;
+
+-- Drop password_hash column from users
+ALTER TABLE users DROP COLUMN IF EXISTS password_hash;

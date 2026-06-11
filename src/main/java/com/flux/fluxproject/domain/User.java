@@ -20,9 +20,6 @@ public class User {
 
     private String email;
 
-    @Column("password_hash")
-    private String passwordHash;
-
     private String name;
 
     @Column("created_at")
