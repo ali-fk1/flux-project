@@ -27,11 +27,6 @@ x:
 
 aes:
   secret-key: ${AES_SECRET_KEY}
-  auth-secret-key: ${AES_AUTHENTICATION_KEY}
-
-mailgun:
-  api-key: ${MAILGUN_API_KEY}
-  domain: ${DOMAIN}
 
 aws:
   access-id: ${AWS_ACCESS_KEY_ID}
@@ -44,16 +39,6 @@ aws:
 app:
   frontend-url: ${FRONTEND_URL}
   backend-url: ${BACKEND_URL}
-
-jwt:
-  access-secret: ${JWT_ACCESS_SECRET}
-  refresh-secret: ${JWT_REFRESH_SECRET}
-
-  access-token:
-    expiration: 900
-
-  refresh-token:
-    expiration: 2592000
 
 cookie:
   secure: false
