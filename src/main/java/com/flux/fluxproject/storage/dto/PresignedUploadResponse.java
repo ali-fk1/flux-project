@@ -1,4 +1,15 @@
 package com.flux.fluxproject.storage.dto;
 
-public class PresignedUploadResponse {
+import java.net.URL;
+import java.time.Instant;
+
+public record PresignedUploadResponse(
+
+        String objectKey,
+
+        URL uploadUrl,
+
+        Instant expiresAt
+
+) {
 }
