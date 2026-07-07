@@ -10,11 +10,6 @@ spring:
         jwt:
           issuer-uri: ${ISSUER_URI}
 
-  cloud:
-    aws:
-      region:
-        static: ${AWS_DEFAULT_REGION}
-
 x:
   api-key: ${X_API_KEY}
   api-secret: ${X_API_SECRET_KEY}
@@ -34,7 +29,8 @@ aws:
   default-region: ${AWS_DEFAULT_REGION}
 
   s3:
-    bucket-name: ${AWS_S3_BUCKET_NAME}
+    bucket-name: ${AWS_S3_BUCKET}
+    presigned-url-duration: 10m
 
 app:
   frontend-url: ${FRONTEND_URL}
