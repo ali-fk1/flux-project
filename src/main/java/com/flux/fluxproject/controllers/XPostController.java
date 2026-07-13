@@ -7,6 +7,7 @@ import com.flux.fluxproject.exceptions.XTokenRefreshFailedException;
 import com.flux.fluxproject.model.PostTextRequest;
 import com.flux.fluxproject.model.XPostResponse;
 import com.flux.fluxproject.services.X.XPostService;
+import com.flux.fluxproject.services.X.XPublishingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -22,11 +23,12 @@ public class XPostController {
 
     private final XPostService xPostService;
     private final KeycloakPrincipalExtractor extractor;
+    private final XPublishingService xPublishingService;
 
     @PostMapping("/post")
     public Mono<ResponseEntity<XPostResponse>> postText(@RequestBody PostTextRequest request) {
         return extractor.resolveLocalUserId()
-                .flatMap(userId -> xPostService.postTextWithAutoRefresh(userId, request.getText())
+                .flatMap(userId -> xPublishingService.publishText(userId, request.getText())
                         .map(response -> {
                             log.info("Successfully posted tweet for userId: {}", userId);
                             return ResponseEntity

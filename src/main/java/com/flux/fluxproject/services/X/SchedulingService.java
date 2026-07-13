@@ -23,6 +23,7 @@ public class SchedulingService {
     private final PostRepository postRepository;
     private final SocialAccountRepository socialAccountRepository;
     private final XPostService xPostService;
+    private final XPublishingService xPublishingService;
 
     public Mono<Post> saveScheduledPost (ScheduledPostRequest scheduledPostRequest , UUID userId){
         return socialAccountRepository.findByUserIdAndPlatform(userId , "X")
@@ -48,7 +49,7 @@ public class SchedulingService {
     public Flux<Post> executePosting(int batchSize){
         return postRepository.claimDuePosts(batchSize)
                 .flatMap(duePost->
-                    xPostService.postTextWithAutoRefresh(duePost.getUserId() ,duePost.getContent())
+                                xPublishingService.publishText(duePost.getUserId() ,duePost.getContent())
                             .flatMap(resp->postRepository.markPublished(duePost.getId(),Instant.now()))
                             .onErrorResume(e->postRepository.markFailed(duePost.getId() , safeMsg(e)))
                ,2);
