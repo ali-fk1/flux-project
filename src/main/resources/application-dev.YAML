@@ -11,7 +11,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${ISSUER_URI}
+          issuer-uri: ${ISSUER_URI_M}
 
 x:
   api-key: ${X_API_KEY}

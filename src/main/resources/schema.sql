@@ -314,3 +314,20 @@ DROP TABLE IF EXISTS refresh_tokens CASCADE;
 
 -- Drop password_hash column from users
 ALTER TABLE users DROP COLUMN IF EXISTS password_hash;
+
+
+-- ================================================================
+-- 16/07/2026 12:05 AM
+--
+-- ================================================================
+
+ALTER TABLE oauth2_authorization_requests
+    ADD COLUMN client_type VARCHAR(20);
+
+
+ALTER TABLE social_accounts
+    ADD COLUMN profile_image_url VARCHAR(2048);
+
+
+ALTER TABLE posts
+    ALTER COLUMN scheduled_at_utc DROP NOT NULL;

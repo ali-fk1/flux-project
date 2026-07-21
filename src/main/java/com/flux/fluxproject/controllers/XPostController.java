@@ -28,7 +28,7 @@ public class XPostController {
     @PostMapping("/post")
     public Mono<ResponseEntity<XPostResponse>> postText(@RequestBody PostTextRequest request) {
         return extractor.resolveLocalUserId()
-                .flatMap(userId -> xPublishingService.publishText(userId, request.getText())
+                .flatMap(userId -> xPublishingService.publishNow(userId, request.getText())
                         .map(response -> {
                             log.info("Successfully posted tweet for userId: {}", userId);
                             return ResponseEntity

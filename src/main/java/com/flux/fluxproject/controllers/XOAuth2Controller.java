@@ -1,6 +1,7 @@
 package com.flux.fluxproject.controllers;
 
 import com.flux.fluxproject.config.KeycloakPrincipalExtractor;
+import com.flux.fluxproject.model.XAccountInfoResponse;
 import com.flux.fluxproject.repositories.OAuth2AuthRequestRepository;
 import com.flux.fluxproject.services.X.XOAuth2Service;
 import lombok.RequiredArgsConstructor;
@@ -32,9 +33,19 @@ public class XOAuth2Controller {
     private String frontendUrl;
 
     @PostMapping("/x")
-    public Mono<String> startAuthFlow() {
+    public Mono<String> startWebAuthFlow() {
         return extractor.resolveLocalUserId()
-                .flatMap(userId -> xOAuth2Service.buildAuthorizationUrl(userId));
+                .flatMap(userId ->
+                        xOAuth2Service.buildAuthorizationUrl(userId, "WEB")
+                );
+    }
+
+
+    @PostMapping("/x/connect")
+    public Mono<ResponseEntity<Map<String, String>>> startMobileAuthFlow() {
+        return extractor.resolveLocalUserId()
+                .flatMap(userId -> xOAuth2Service.buildAuthorizationUrl(userId, "MOBILE"))
+                .map(authUrl -> ResponseEntity.ok(Map.of("authUrl", authUrl)));
     }
 
     @GetMapping("/x/callback")
@@ -87,6 +98,13 @@ public class XOAuth2Controller {
                     response.put("connected", isConnected);
                     return ResponseEntity.ok(response);
                 });
+    }
+
+    @GetMapping("/x/account")
+    public Mono<ResponseEntity<XAccountInfoResponse>> getXAccountInfo() {
+        return extractor.resolveLocalUserId()
+                .flatMap(xOAuth2Service::getAccountInfo)
+                .map(ResponseEntity::ok);
     }
 
     private URI frontendRedirectWithMessage(String path, String message) {

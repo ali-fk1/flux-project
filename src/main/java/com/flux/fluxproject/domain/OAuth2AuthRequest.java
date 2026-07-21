@@ -22,6 +22,8 @@ public class OAuth2AuthRequest {
     @Column("provider")
     private String provider;
 
+    private String clientType;
+
     @Column("user_id")
     private UUID userId;
 

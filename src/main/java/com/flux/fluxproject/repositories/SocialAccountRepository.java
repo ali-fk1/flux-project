@@ -24,4 +24,13 @@ public interface SocialAccountRepository extends ReactiveCrudRepository<SocialAc
     Mono<String> findAuthDataByUserId(UUID userId);
 
     Mono<Void> deleteByUserId(UUID userId);
+
+    @Query("""
+    SELECT id 
+    FROM social_accounts
+    WHERE user_id = :userId
+    AND platform = 'X'
+    LIMIT 1
+""")
+    Mono<UUID> findSocialAccountIdByUserId(UUID userId);
 }
