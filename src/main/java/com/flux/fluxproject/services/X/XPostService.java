@@ -49,13 +49,22 @@ public class XPostService {
                 .defaultIfEmpty(true);
     }
 
-    public Mono<XPostResponse> postText(String text, String accessToken) {
+    public Mono<XPostResponse> postText(UUID userId, String text, String accessToken) {
         return xWebClient.post()
                 .uri("/2/tweets")
                 .accept(MediaType.APPLICATION_JSON)
                 .header("Authorization", "Bearer " + accessToken)
                 .bodyValue(Map.of("text", text))
                 .retrieve()
+                .onStatus(status -> status.value() == 401, response ->
+                        response.bodyToMono(String.class)
+                                .flatMap(body -> {
+                                    log.error("X API auth error for userId {}: {}", userId, body);
+                                    return markDisconnected(userId)
+                                            .then(Mono.error(new XAccountNotConnectedException(
+                                                    "X account no longer authorized: " + body)));
+                                })
+                )
                 .onStatus(HttpStatusCode::isError, response ->
                         response.bodyToMono(String.class)
                                 .flatMap(body -> {
@@ -74,15 +83,19 @@ public class XPostService {
                     if (isExpired) {
                         log.info("Access token expired for user with ID: {} ... Refreshing", userId);
                         return refreshAccessToken(userId)
-                                .onErrorMap(e -> new XTokenRefreshFailedException("Token refresh failed: " + e.getMessage()))
+                                .onErrorResume(e ->
+                                        markDisconnected(userId)
+                                                .then(Mono.error(new XTokenRefreshFailedException(
+                                                        "Token refresh failed: " + e.getMessage())))
+                                )
                                 .flatMap(tokenResponse ->
                                         saveRefreshedToken(userId, tokenResponse)
                                                 .then(getAccessToken(userId))
                                 )
-                                .flatMap(token -> postText(text, token));
+                                .flatMap(token -> postText(userId, text, token));
                     } else {
                         return getAccessToken(userId)
-                                .flatMap(token -> postText(text, token));
+                                .flatMap(token -> postText(userId, text, token));
                     }
                 })
                 .switchIfEmpty(Mono.error(new XAccountNotConnectedException("X account not connected")));
@@ -196,6 +209,16 @@ public class XPostService {
         }
         return OffsetDateTime.now().plusSeconds(expiresIn);
     }
+    public Mono<Void> markDisconnected(UUID userId) {
+        return socialAccountRepository.findByUserIdAndPlatform(userId, "X")
+                .flatMap(account -> {
+                    account.setIsActive(false);
+                    return socialAccountRepository.save(account);
+                })
+                .then()
+                .doOnSuccess(v -> log.warn("Marked X account as disconnected for userId: {}", userId));
+    }
+
 }
 
 // Even better: Generic method to avoid duplication

@@ -39,7 +39,8 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/webjars/**",
-                                "/api/x/callback"
+                                "/api/x/callback",
+                                "/api/test"
 
                         ).permitAll()
                         .anyExchange().authenticated()

@@ -48,11 +48,25 @@ public class SchedulingService {
 
     public Flux<Post> executePosting(int batchSize){
         return postRepository.claimDuePosts(batchSize)
-                .flatMap(duePost->
-                                xPublishingService.publishText(duePost.getUserId() ,duePost.getContent())
-                            .flatMap(resp->postRepository.markPublished(duePost.getId(),Instant.now()))
-                            .onErrorResume(e->postRepository.markFailed(duePost.getId() , safeMsg(e)))
-               ,2);
+                .flatMap(duePost ->
+                                xPublishingService.publishText(
+                                                duePost.getUserId(),
+                                                duePost.getContent()
+                                        )
+                                        .flatMap(resp ->
+                                                postRepository.markPublished(
+                                                        duePost.getId(),
+                                                        Instant.now()
+                                                )
+                                        )
+                                        .onErrorResume(e ->
+                                                postRepository.markFailed(
+                                                        duePost.getId(),
+                                                        safeMsg(e)
+                                                )
+                                        ),
+                        2
+                );
     }
 
 

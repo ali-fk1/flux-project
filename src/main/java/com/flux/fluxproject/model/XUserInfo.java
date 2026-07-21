@@ -15,6 +15,7 @@ public class XUserInfo {
     private String id;
     private String username;
     private String name;
+    private String profileImageUrl;
 //    private String profile_image_url;
 //    private String description;
 //    private Boolean verified;
@@ -26,7 +27,7 @@ public class XUserInfo {
             this.id = data.id;
             this.username = data.username;
             this.name = data.name;
-//            this.profile_image_url = data.profile_image_url;
+            this.profileImageUrl = data.profileImageUrl;
 //            this.description = data.description;
 //            this.verified = data.verified;
         }
@@ -38,7 +39,8 @@ public class XUserInfo {
         private String id;
         private String username;
         private String name;
-//        private String profile_image_url;
+        @JsonProperty("profile_image_url")
+        private String profileImageUrl;
 //        private String description;
 //        private Boolean verified;
     }

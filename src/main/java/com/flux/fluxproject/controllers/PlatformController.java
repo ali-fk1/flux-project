@@ -23,4 +23,9 @@ public class PlatformController {
         return extractor.resolveLocalUserId()
                 .map(userId -> Map.of("id", userId.toString()));
     }
+
+    @GetMapping("/test")
+    public String test() {
+        return "hello";
+    }
 }

@@ -6,6 +6,7 @@ import com.flux.fluxproject.mappers.PostViewMapper;
 import com.flux.fluxproject.model.CursorPageResponse;
 import com.flux.fluxproject.model.PostCursor;
 import com.flux.fluxproject.model.PostViewResponse;
+import com.flux.fluxproject.model.UpdatePostRequest;
 import com.flux.fluxproject.repositories.PostRepository;
 import com.flux.fluxproject.util.CursorUtil;
 import lombok.RequiredArgsConstructor;
@@ -146,5 +147,52 @@ public class PostService {
                 });
     }
 
+
+    public Mono<PostViewResponse> updatePost(
+            UUID userId,
+            UUID postId,
+            UpdatePostRequest request
+    ) {
+
+        return postRepository.findById(postId)
+                .switchIfEmpty(
+                        Mono.error(
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Post not found"
+                                )
+                        )
+                )
+                .flatMap(post -> {
+
+                    if (!post.getUserId().equals(userId)) {
+                        return Mono.error(
+                                new ResponseStatusException(
+                                        HttpStatus.FORBIDDEN,
+                                        "Unauthorized"
+                                )
+                        );
+                    }
+
+
+                    if (request.text() != null) {
+                        post.setContent(request.text());
+                    }
+
+
+                    if (request.scheduledAtUtc() != null) {
+                        post.setScheduledAtUtc(
+                                request.scheduledAtUtc()
+                        );
+                    }
+
+
+                    post.setUpdatedAtUtc(Instant.now());
+
+
+                    return postRepository.save(post);
+                })
+                .map(postViewMapper::postToPostView);
+    }
 
 }

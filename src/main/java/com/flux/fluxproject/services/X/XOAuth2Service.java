@@ -2,6 +2,7 @@ package com.flux.fluxproject.services.X;
 
 import com.flux.fluxproject.domain.OAuth2AuthRequest;
 import com.flux.fluxproject.domain.SocialAccount;
+import com.flux.fluxproject.model.XAccountInfoResponse;
 import com.flux.fluxproject.model.XTokenResponse;
 import com.flux.fluxproject.model.XUserInfo;
 import com.flux.fluxproject.repositories.OAuth2AuthRequestRepository;
@@ -56,7 +57,10 @@ public class XOAuth2Service {
     private final SocialAccountRepository socialAccountRepository;
     private final OAuth2AuthRequestRepository oAuth2AuthRequestRepository;
 
-    public Mono<String> buildAuthorizationUrl(UUID userId) {
+    public Mono<String> buildAuthorizationUrl(
+            UUID userId,
+            String clientType
+    ) {
         try {
             String codeVerifier = OAuth2PKCEUtil.generateCodeVerifier(length);
             String codeChallenge = OAuth2PKCEUtil.generateCodeChallenge(codeVerifier);
@@ -65,6 +69,7 @@ public class XOAuth2Service {
             OAuth2AuthRequest oauth2AuthRequest = OAuth2AuthRequest.builder()
                     .userId(userId)
                     .provider("X")
+                    .clientType(clientType)
                     .codeVerifier(codeVerifier)
                     .state(state)
                     .createdAt(Instant.now())
@@ -145,6 +150,7 @@ public class XOAuth2Service {
                                             .platform("X")
                                             .platformUserId(xUserInfo.getId())
                                             .username(xUserInfo.getUsername())
+                                            .profileImageUrl(xUserInfo.getProfileImageUrl())
                                             .authData(encryptedAuthData)
                                             .expiresAt(calculateExpiryTime(xTokenResponse.getExpiresIn()))
                                             .isActive(true)
@@ -157,22 +163,24 @@ public class XOAuth2Service {
                     request.setConsumed(true);
                     return oAuth2AuthRequestRepository.save(request);
                 })
-                .thenReturn(ResponseEntity
-                        .status(HttpStatus.FOUND)
-                        .location(frontendRedirect("/auth/success"))
-                        .build())
+//                .thenReturn(ResponseEntity
+//                        .status(HttpStatus.FOUND)
+//                        .location(frontendRedirect("/auth/success"))
+//                        .build())
+                .thenReturn(
+                        buildSuccessRedirect(request)
+                )
                 .onErrorResume(e -> {
                     log.error("Error saving social account for userId {}: ", userId, e);
-                    return Mono.just(ResponseEntity
-                            .status(HttpStatus.FOUND)
-                            .location(frontendRedirectWithMessage("/auth/error", e.getMessage()))
-                            .build());
+                    return Mono.just(
+                            buildErrorRedirect(request, e.getMessage())
+                    );
                 });
     }
 
     public Mono<XUserInfo> getUserInfoFromX(String accessToken) {
         return xWebClient.get()
-                .uri("/2/users/me?user.fields=id,username,name")
+                .uri("/2/users/me?user.fields=id,username,name,profile_image_url")
                 .header("Authorization", "Bearer " + accessToken)
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, response ->
@@ -223,4 +231,80 @@ public class XOAuth2Service {
         if (path == null || path.isBlank()) return "/auth/error";
         return path.startsWith("/") ? path : "/" + path;
     }
+
+
+    private ResponseEntity<Object> buildSuccessRedirect(
+            OAuth2AuthRequest request
+    ) {
+
+        if ("MOBILE".equals(request.getClientType())) {
+            return ResponseEntity
+                    .status(HttpStatus.FOUND)
+                    .location(
+                            URI.create(
+                                    "flux://x-connect/success"
+                            )
+                    )
+                    .build();
+
+        }
+
+        return ResponseEntity
+                .status(HttpStatus.FOUND)
+                .location(
+                        frontendRedirect("/auth/success")
+                )
+                .build();
+    }
+
+
+    private ResponseEntity<Object> buildErrorRedirect(
+            OAuth2AuthRequest request,
+            String message
+    ){
+
+        if ("MOBILE".equals(request.getClientType())) {
+
+            return ResponseEntity
+                    .status(HttpStatus.FOUND)
+                    .location(
+                            UriComponentsBuilder
+                                    .fromUriString(
+                                            "flux://x-connect/error"
+                                    )
+                                    .queryParam("message", message)
+                                    .build()
+                                    .toUri()
+                    )
+                    .build();
+        }
+
+
+        return ResponseEntity
+                .status(HttpStatus.FOUND)
+                .location(
+                        frontendRedirectWithMessage(
+                                "/auth/error",
+                                message
+                        )
+                )
+                .build();
+    }
+
+    public Mono<XAccountInfoResponse> getAccountInfo(UUID userId) {
+        return socialAccountRepository.findByUserIdAndPlatform(userId, "X")
+                .map(account -> XAccountInfoResponse.builder()
+                        .connected(Boolean.TRUE.equals(account.getIsActive()))
+                        .username(account.getUsername())
+                        .profileImageUrl(account.getProfileImageUrl())
+                        .build())
+                .defaultIfEmpty(
+                        XAccountInfoResponse.builder()
+                                .connected(false)
+                                .username(null)
+                                .profileImageUrl(null)
+                                .build()
+                );
+    }
+
 }

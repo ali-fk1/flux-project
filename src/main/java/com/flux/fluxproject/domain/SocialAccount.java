@@ -30,6 +30,9 @@ public class SocialAccount {
 
     private String username;
 
+    @Column("profile_image_url")
+    private String profileImageUrl;
+
     @Column("auth_data")
     private String authData;
 
